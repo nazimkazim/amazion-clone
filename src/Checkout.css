@@ -5,7 +5,16 @@
 }
 
 .checkout__left {
+  display:flex;
+  flex-direction: column;
+  flex:0.8;
   width: 1000px;
+}
+
+.checkout__right {
+  display:flex;
+  justify-content: center;
+  flex:0.2;
 }
 
 .checkout__ad {

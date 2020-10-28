@@ -6,7 +6,8 @@ import { Link, useHistory } from 'react-router-dom';
 import { useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 import CurrencyFormat from 'react-currency-format';
 import { getBasketTotal } from './reducer';
-import axios from 'axios'
+import axios from './axios';
+import { db } from './firebase';
 
 
 function Payment() {
@@ -15,25 +16,27 @@ function Payment() {
 
   const stripe = useStripe();
   const elements = useElements();
-  const history = useHistory()
+  const history = useHistory();
 
   const [succeeded, setSucceeded] = useState(false);
   const [processing, setProcessing] = useState("");
 
   const [error, setError] = useState(null);
   const [disabled, setDisabled] = useState(true);
-  const [clientSecret, setClientSecret] = useState(true)
+  const [clientSecret, setClientSecret] = useState(true);
 
   useEffect(() => {
     const getClientSecret = async () => {
       const response = await axios({
-        method:'post',
-        url:`/payments/create?total=${getBasketTotal(basket) * 100}` 
-      })
+        method: 'post',
+        url: `/payments/create?total=${getBasketTotal(basket) * 100}`
+      });
       setClientSecret(response.data.clientSecret);
-    }
-    getClientSecret()
-  }, [basket])
+    };
+    getClientSecret();
+  }, [basket]);
+
+  console.log('the secret is >>>>', clientSecret);
 
   const handleSubmit = async (e) => {
     // do all the fncy stripe staff
@@ -41,16 +44,24 @@ function Payment() {
     setProcessing(true);
 
     const payload = await stripe.confirmCardPayment(clientSecret, {
-      payment_method:{
-        card:elements.getElement(CardElement)
+      payment_method: {
+        card: elements.getElement(CardElement)
       }
-    }).then(({paymentIntent}) => {
+    }).then(({ paymentIntent }) => {
       // paymentIntent = payment confirmation
-      setSucceeded(true)
-      setError(null)
-      setProcessing(false)
-      history.replace('/orders')
-    })
+      db.collection('users').doc(user?.uid).collection('orders').doc(paymentIntent.id).set({
+        basket: basket,
+        amount: paymentIntent.amount,
+        created: paymentIntent.created
+      });
+      setSucceeded(true);
+      setError(null);
+      setProcessing(false);
+      dispatch({
+        type: 'EMTY_BASKET'
+      });
+      history.replace('/orders');
+    });
   };
 
   const handleChange = e => {
